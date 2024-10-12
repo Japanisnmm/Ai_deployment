@@ -30,7 +30,7 @@ def run():
         return pd.read_pickle(model_path)
 
     model = load_loan_detection_ann_model(
-        "loan_defualt_risk_detection_ann_v3.h5")
+        "loan_defualt_risk.h5")
 
     scaler = load_scaler_transformation(
         "model_min_max_scaler.pkl")
@@ -59,13 +59,13 @@ def run():
 
     with st.sidebar:
         st.write("")
-        st.title("💸 Loan System 💸")
+        st.title("KMITLoanRiskPredicted")
         st.write("")
 
         page = option_menu(
             menu_title=None,
-            options=['Preidct', 'From CSV File'],
-            icons=['robot', 'filetype-csv'],
+            options=['Preidct'],
+            icons=['robot'],
             menu_icon="cast",
             default_index=0,
             styles=side_bar_options_style
@@ -86,27 +86,27 @@ def run():
                     with st.form("Preidct"):
                         c1, c2 = st.columns(2)
                         with c1:
-                            annual_income = st.number_input('**Annual Income**', min_value=10000,
-                                                            max_value=1000000000, value=100000)
+                            annual_income = st.number_input('**รายได้รวมในช่วง 1 ปี**', min_value=1,
+                                                            max_value=1000000000, value=8000)
 
                             applicant_age = st.number_input(
-                                '**Applicant Age**', min_value=21, max_value=85, value=33)
+                                '**อายุผู้สมัคร**', min_value=21, max_value=85, value=24)
 
-                            marital_status = st.selectbox('**Marital Status**', options=[
-                                                          "Married", "Single"], index=0)
+                            marital_status = st.selectbox('**สถานะ**', options=[
+                                                          "แต่งงาน", "โสด"], index=1)
 
-                        house_ownership = st.selectbox('**House Ownership**', options=[
-                            "Rented", "Owned", "No-Rent No-Own"], index=0)
+                        house_ownership = st.selectbox('**ข้อมูลเกี่ยวกับบ้าน**', options=[
+                            "เช่าอยู่", "เจ้าของ", "อาศัยอยู่กับครอบครัว"], index=0)
 
                         with c2:
                             work_exp = st.number_input(
-                                '**Work Experience**', min_value=0, max_value=40, value=4)
+                                '**ประสบการณ์การทำงาน**', min_value=0, max_value=40, value=0)
 
                             years_in_current_employment = st.number_input(
-                                '**Years In Employment**', min_value=0, max_value=30, value=3)
+                                '**จำนวนปีที่ทำงาน**', min_value=0, max_value=30, value=0)
 
-                            vehicle_ownership = st.selectbox('**Vehicle Ownership**', options=[
-                                "Yes", "No"], index=0)
+                            vehicle_ownership = st.selectbox('**ยานพาหนะ**', options=[
+                                "มี", "ไม่มี"], index=1)
 
                         predict_button = st.form_submit_button("**Predict** 🚀")
 
@@ -115,22 +115,22 @@ def run():
 
                         # marital_status
                         marital_status_encodded = 0  # Married
-                        if marital_status == "Single":
+                        if marital_status == "โสด":
                             marital_status_encodded = 1
 
                         # house_ownership
                         house_ownership_encodded = [0, 0]  # No-Rent No-Own
 
-                        if house_ownership == "Rented":
+                        if house_ownership == "เช่าอยู่":
                             house_ownership_encodded = [0, 1]  # Rented
 
-                        elif house_ownership == "Owned":
+                        elif house_ownership == "เจ้าของ":
                             house_ownership_encodded = [1, 0]  # Owned
 
                         # vehicle_ownership
                         vehicle_ownership_encodded = 1  # Yes
 
-                        if vehicle_ownership == "No":
+                        if vehicle_ownership == "ไม่มี":
                             vehicle_ownership_encodded = 0  # No
 
                         # Create list of all New Data
@@ -160,64 +160,15 @@ def run():
                                 st.success("")
                                 st.image("imgs/loan.png",
                                          caption="", width=150)
-                                st.subheader("Expected No Loan")
-                                st.subheader(":green[Default Risk]")
+                                st.subheader("แนะนำให้เสนอสินเชื่อ")
+                                st.subheader(":green[มีความเสี่ยงปกติ]")
 
                             else:
                                 st.error("")
                                 st.image("imgs/speedometer.png",
                                          caption="", width=105)
-                                st.subheader(f"Expected Loan")
-                                st.subheader(":red[Default Risk]")
-
-        # Another Page
-        if page == "From CSV File":
-            df = pd.DataFrame()
-            the_data = st.file_uploader(
-                "Upload Your Master Data (CSV)📂", type="csv")
-
-            if the_data is not None:
-                if the_data.name.split(".")[-1].lower() != "csv":
-                    st.error("Please, Upload CSV FILE ONLY")
-                else:
-                    st.session_state.the_df = pd.read_csv(the_data)
-                    df = st.session_state.the_df.copy()
-                    df.dropna(inplace=True)
-
-            with header:
-                st.header("Prediction From File ")
-
-            with content:
-                st.write("")
-                is_right_data = check_columns(df, ['Annual_Income', 'Applicant_Age', 'Work_Experience', 'Marital_Status',
-                                                   'House_Ownership', 'Vehicle_Ownership',
-                                                   'Years_in_Current_Work'])
-
-                if is_right_data:
-                    st.dataframe(df.sample(frac=0.35, random_state=99),
-                                 use_container_width=True, hide_index=True)
-
-                    if st.button("✨ Predict ✨", type="primary"):
-                        with st.spinner("Predictin New Data..."):
-                            df_encodded = pd.get_dummies(df, columns=['Marital_Status', 'House_Ownership', 'Vehicle_Ownership'],
-                                                         drop_first=True)*1
-
-                            scaled_data = scaler.transform(df_encodded)
-
-                            predictions = model.predict(scaled_data)
-                            predictions = (predictions > 0.5) * 1
-
-                            full_df = df.copy()
-                            full_df["Loan Defualt Predicted"] = predictions
-
-                            st.dataframe(
-                                full_df, use_container_width=True, hide_index=True)
-
-                else:
-                    st.info(
-                        "Please, Upload The Right Dataset With The Same Columns and Order", icon="🚨")
-                    st.info(
-                        "['Annual_Income', 'Applicant_Age', 'Work_Experience', 'Marital_Status', 'House_Ownership', 'Vehicle_Ownership', 'Years_in_Current_Work']")
+                                st.subheader(f"ไม่แนะนำให้เสนอสินเชื่อ")
+                                st.subheader(":red[มีความเสี่ยงที่จะผิดชำระหนี้]")
 
 
 run()
